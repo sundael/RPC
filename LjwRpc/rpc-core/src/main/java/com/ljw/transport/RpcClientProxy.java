@@ -29,7 +29,7 @@ public class RpcClientProxy implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
         RpcRequest rpcRequest=new RpcRequest(UUID.randomUUID().toString(),method.getDeclaringClass().getName(),
-                method.getName(),args,method.getParameterTypes());
+                method.getName(),args,method.getParameterTypes(),false);
         RpcResponse rpcResponse =null;
         rpcResponse = (RpcResponse) Client.sendRequest(rpcRequest);
         return rpcResponse.getData();

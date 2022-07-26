@@ -12,6 +12,8 @@ import com.ljw.register.ServiceDiscovery;
 import com.ljw.serializer.CommonSerializer;
 import com.ljw.transport.RpcClient;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -61,7 +63,29 @@ public class NettyClient implements RpcClient {
             throw new RpcException(RpcError.SERIALIZER_NOT_FOUND);
         }
         CompletableFuture<RpcResponse> resultFuture = new CompletableFuture<>();
-        InetSocketAddress inetSocketAddress = serviceDiscovery.lookupService(rpcRequest.getInterfaceName());
+        try {
+            InetSocketAddress inetSocketAddress = serviceDiscovery.lookupService(rpcRequest.getInterfaceName());
+            Channel channel = ChannelProvider.get(inetSocketAddress, serializer);
+            if (!channel.isActive()) {
+                group.shutdownGracefully();
+                return null;
+            }
+            unprocessedRequests.put(rpcRequest.getRequestId(), resultFuture);
+            channel.writeAndFlush(rpcRequest).addListener((ChannelFutureListener) future1 -> {
+                if (future1.isSuccess()) {
+                    log.info(String.format("客户端发送消息: %s", rpcRequest.toString()));
+                } else {
+                    future1.channel().close();
+                    resultFuture.completeExceptionally(future1.cause());
+                    log.error("发送消息时有错误发生: ", future1.cause());
+                }
+            });
+        } catch (InterruptedException e) {
+            unprocessedRequests.remove(rpcRequest.getRequestId());
+            log.error(e.getMessage(), e);
+            Thread.currentThread().interrupt();
+        }
+        return resultFuture;
 
     }
 }

@@ -31,7 +31,7 @@ public class ChannelProvider {
 
     private static Map<String, Channel> channels = new ConcurrentHashMap<>();
 
-    public static Channel get(InetSocketAddress inetSocketAddress, CommonSerializer serializer ){
+    public static Channel get(InetSocketAddress inetSocketAddress, CommonSerializer serializer ) throws InterruptedException {
         String key = inetSocketAddress.toString() + serializer.getCode();
         if (channels.containsKey(key)){
             Channel channel = channels.get(key);
@@ -48,7 +48,7 @@ public class ChannelProvider {
                         socketChannel.pipeline().addLast(new CommonEncoder(serializer))
                                 .addLast(new IdleStateHandler(0,5,0, TimeUnit.SECONDS))
                                 .addLast(new CommonDecoder())
-                                .addLast(new NettyClentHandler());
+                                .addLast(new NettyClientHandler());
                     }
                 }
         );
